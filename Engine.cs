@@ -83,7 +83,7 @@
 
             var elapsedTime = DateTime.Now - startTime;
             var remainingBytes = total - current;
-            var remainingTime = elapsedTime * remainingBytes / bytesRead;
+            var remainingTime = TimeSpan.FromSeconds(elapsedTime.TotalSeconds * remainingBytes / bytesRead);
             Console.Write($"] {ToMB(current)} of {ToMB(total)} ({percent * 100:0.00}%) {ToTime(elapsedTime)} {ToTime(remainingTime)}");
         }
 
