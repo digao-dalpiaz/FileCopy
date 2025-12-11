@@ -30,6 +30,7 @@ namespace FileCopy
             if (File.Exists(destPathTmp))
             {
                 Console.WriteLine("Continuing previous copy....");
+                Console.WriteLine();
 
                 destLength = new FileInfo(destPathTmp).Length;
 
@@ -42,6 +43,15 @@ namespace FileCopy
                 ctrl = new Ctrl { Timestamp = sourceTimestamp };
                 File.WriteAllText(ctrlFile, JsonSerializer.Serialize(ctrl));
             }
+
+            void CheckChanged()
+            {
+                if (File.GetLastWriteTime(sourcePath) != sourceTimestamp) throw new Wrong("Source file changed during copy");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.WriteLine();
 
             using (var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var dest = new FileStream(destPathTmp, FileMode.Append, FileAccess.Write, FileShare.None))
@@ -57,11 +67,12 @@ namespace FileCopy
                 void UpdateBar()
                 {
                     DrawProgressBar(destLength, sourceLength, startTime, totalBytesRead);
-
-                    if (File.GetLastWriteTime(sourcePath) != sourceTimestamp) throw new Wrong("Source file change during copy");
                 }
 
-                var lastUpdate = DateTime.MinValue;
+                UpdateBar();
+
+                var lastBarUpdate = DateTime.Now;
+                var lastCheckChanged = DateTime.Now;
 
                 while ((bytesRead = await source.ReadAsync(buffer)) > 0)
                 {
@@ -69,15 +80,23 @@ namespace FileCopy
                     destLength += bytesRead;
                     totalBytesRead += bytesRead;
 
-                    if ((DateTime.Now - lastUpdate).TotalMilliseconds > 1000)
+                    if ((DateTime.Now - lastBarUpdate).TotalSeconds >= 1)
                     {
                         UpdateBar();
-                        lastUpdate = DateTime.Now;
+                        lastBarUpdate = DateTime.Now;
+                    }
+
+                    if ((DateTime.Now - lastCheckChanged).TotalSeconds >= 10)
+                    {
+                        CheckChanged();
+                        lastCheckChanged = DateTime.Now;
                     }
                 }
 
                 UpdateBar();
             }
+
+            CheckChanged();
 
             File.Move(destPathTmp, destPath);
             File.SetLastWriteTime(destPath, sourceTimestamp);
@@ -91,7 +110,7 @@ namespace FileCopy
             int filled = (int)(percent * barWidth);
             int empty = barWidth - filled;
 
-            int baseLine = Console.CursorTop;
+            int baseLine = Console.CursorTop - 3;
 
             Console.SetCursorPosition(0, baseLine);
 
@@ -108,13 +127,15 @@ namespace FileCopy
 
             var elapsedTime = DateTime.Now - startTime;
             var remainingBytes = total - current;
-            var remainingTime = TimeSpan.FromSeconds(elapsedTime.TotalSeconds * remainingBytes / bytesRead);
+            var remainingTime = bytesRead > 0 ? TimeSpan.FromSeconds(elapsedTime.TotalSeconds * remainingBytes / bytesRead) : (TimeSpan?)null;
 
             Console.SetCursorPosition(0, baseLine + 1);
             Console.Write($"{ToMB(current)} of {ToMB(total)} ({percent * 100:0.00}%)".PadRight(Console.WindowWidth));
 
             Console.SetCursorPosition(0, baseLine + 2);
-            Console.Write($"{ToTime(elapsedTime)} elapsed | {ToTime(remainingTime)} remaining".PadRight(Console.WindowWidth));
+            Console.Write($"{ToTime(elapsedTime)} elapsed | {(remainingTime == null ? "unknown" : ToTime(remainingTime.Value))} remaining".PadRight(Console.WindowWidth));
+
+            Console.SetCursorPosition(0, baseLine + 3);
         }
 
         private static string ToMB(long size)
