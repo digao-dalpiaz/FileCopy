@@ -100,6 +100,8 @@ namespace FileCopy
 
             File.Move(destPathTmp, destPath);
             File.SetLastWriteTime(destPath, sourceTimestamp);
+
+            File.Delete(ctrlFile);
         }
 
         private static void DrawProgressBar(long current, long total, DateTime startTime, long bytesRead)
