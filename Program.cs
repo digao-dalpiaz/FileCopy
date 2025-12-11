@@ -30,7 +30,7 @@ try
 
     Console.WriteLine();
 
-    await new Engine().CopyWithResumeAsync(sourceFile, destinationFolder);
+    await Engine.CopyWithResumeAsync(sourceFile, destinationFolder);
 }
 catch (Exception ex)
 {
